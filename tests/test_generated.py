@@ -24,14 +24,16 @@ GOLDEN = ROOT / "tests" / "golden" / "mime-types-3.0.2-conflicts.json"
 
 def _pure_build() -> dict[str, Any]:
     """Build from mime-db alone, with the hand-written supplement switched off."""
+    result: dict[str, Any]
     saved = dict(_supplement.EXTRA_EXTENSIONS), dict(_supplement.PREFERRED_EXTENSION)
     _supplement.EXTRA_EXTENSIONS.clear()
     _supplement.PREFERRED_EXTENSION.clear()
     try:
-        return generate_table.build(json.loads(generate_table.snapshot_bytes()))
+        result = generate_table.build(json.loads(generate_table.snapshot_bytes()))
     finally:
         _supplement.EXTRA_EXTENSIONS.update(saved[0])
         _supplement.PREFERRED_EXTENSION.update(saved[1])
+    return result
 
 
 def test_the_embedded_table_equals_the_generator_output() -> None:
@@ -73,7 +75,12 @@ def test_every_mime_db_type_and_extension_is_kept() -> None:
 
 def test_conflicts_resolve_exactly_like_mime_types_3_0_2() -> None:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
-    assert len(golden) == 48
+    db = json.loads(generate_table.snapshot_bytes())
+    claims: dict[str, int] = {}
+    for entry in db.values():
+        for ext in entry.get("extensions", []):
+            claims[ext] = claims.get(ext, 0) + 1
+    assert set(golden) == {ext for ext, count in claims.items() if count > 1}
     assert {ext: _pure_build()["extensions"][ext] for ext in golden} == golden
 
 

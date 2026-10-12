@@ -8,7 +8,7 @@ from typing import NamedTuple
 
 from ._mediatype import lenient_essence, real_charset, structured_suffix, textual
 from ._models import Guess, MediaTypeInfo, Source
-from ._paths import candidates, normalize_extension, segments, split_encoding
+from ._paths import candidates, expand_alias, normalize_extension, segments, split_encoding
 
 
 class Entry(NamedTuple):
@@ -26,6 +26,9 @@ class MimeTable:
     The package-level functions use :func:`default_table`. Build a variant with
     :meth:`with_types` to add or override mappings without touching any global
     state. Lookups are case-insensitive and never consult the operating system.
+
+    Obtain tables from :func:`default_table` and :meth:`with_types`; the
+    constructor is internal and its arguments may change.
     """
 
     __slots__ = ("_extensions", "_max_dots", "_types")
@@ -43,14 +46,12 @@ class MimeTable:
 
             table = default_table().with_types({"text/x-typescript": ["ts", "d.ts"]})
 
-        Each listed extension now resolves to its new type. The new extensions
-        are placed at the front of the type's list (so the first becomes its
-        preferred extension), followed by any extensions it already had. Other
-        types keep their own lists unchanged.
+        Each listed extension now resolves to its new type and goes to the front
+        of that type's list (the first becomes its preferred extension), before
+        any extensions it already had. Other types keep their lists unchanged.
 
         Raises:
-            ValueError: on a malformed MIME type or extension, or a type with no
-                extensions.
+            ValueError: on a malformed type or extension, or an empty list.
         """
         types = dict(self._types)
         extensions = dict(self._extensions)
@@ -93,10 +94,13 @@ class MimeTable:
         """Return the MIME type of a path from its extension, or ``None``.
 
         The longest dotted suffix the table knows wins, so with the default
-        table ``backup.tar.gz`` is ``application/gzip``. Use :meth:`guess` to
-        separate the content coding instead.
+        table ``backup.tar.gz`` is ``application/gzip``. Short forms the table
+        does not list are read as their long form, so ``backup.tgz`` is also
+        ``application/gzip``. Use :meth:`guess` to separate the content coding.
         """
-        return self._lookup(segments(path))[0]
+        parts = segments(path)
+        mime = self._lookup(parts)[0]
+        return mime if mime is not None else self._lookup(expand_alias(parts))[0]
 
     def guess(self, path: str) -> Guess:
         """Return the type, content coding and matched extension of a path.
@@ -143,8 +147,10 @@ class MimeTable:
         """Return the default charset for a type, lowercase, or ``None``.
 
         The charset the source data declares wins (``application/json`` gives
-        ``"utf-8"``); otherwise any ``text/*`` type gets ``"utf-8"``, the same
-        policy as jshttp mime-types. Other types give ``None``.
+        ``"utf-8"``); otherwise any ``text/*`` type gets ``"utf-8"``, as in
+        jshttp mime-types. Other types give ``None``. Unlike mime-types, the
+        source annotations ``7-BIT`` and ``XML-BASED`` are not charsets and are
+        never returned.
         """
         key = lenient_essence(mime)
         if key is None:

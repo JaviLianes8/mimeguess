@@ -52,6 +52,17 @@ def test_guess_type_keeps_the_final_extension_rule() -> None:
     assert mimeguess.guess_type("logo.svgz") == "image/svg+xml"
 
 
+def test_guess_type_reads_short_archive_forms_as_their_long_form() -> None:
+    assert mimeguess.guess_type("site.tgz") == "application/gzip"
+    assert mimeguess.guess_type("site.TBZ2") == "application/x-bzip2"
+    assert mimeguess.guess_type("site.txz") == "application/x-xz"
+
+
+def test_old_reverse_lookups_still_work() -> None:
+    assert mimeguess.guess_extension("application/x-sqlite3") == ".sqlite"
+    assert mimeguess.guess_type("app.sqlite") == "application/vnd.sqlite3"
+
+
 def test_with_types_adds_compound_extensions_longest_first() -> None:
     table = default_table().with_types({"text/x-typescript": [".ts", "d.ts", "mts"]})
     assert table.guess_type("index.d.ts") == "text/x-typescript"

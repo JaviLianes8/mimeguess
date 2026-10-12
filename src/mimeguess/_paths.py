@@ -57,14 +57,20 @@ def candidates(parts: list[str], max_dots: int) -> list[str]:
     return [".".join(parts[i:]) for i in range(start, len(parts))]
 
 
+def expand_alias(parts: list[str]) -> list[str]:
+    """Replace a trailing short form such as ``tgz`` with ``tar``, ``gz``."""
+    if parts and parts[-1] in SUFFIX_ALIASES:
+        return [*parts[:-1], *SUFFIX_ALIASES[parts[-1]].split(".")]
+    return parts
+
+
 def split_encoding(parts: list[str]) -> tuple[list[str], str | None]:
     """Expand aliases, then strip one trailing content coding.
 
     Mirrors the standard library: ``a.tar.gz`` gives ``(["tar"], "gzip")`` and a
     lone ``a.gz`` gives ``([], "gzip")``.
     """
-    if parts and parts[-1] in SUFFIX_ALIASES:
-        parts = [*parts[:-1], *SUFFIX_ALIASES[parts[-1]].split(".")]
+    parts = expand_alias(parts)
     if parts and parts[-1] in ENCODINGS:
         return parts[:-1], ENCODINGS[parts[-1]]
     return parts, None

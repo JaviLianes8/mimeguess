@@ -10,5 +10,5 @@ URL = "https://raw.githubusercontent.com/jshttp/mime-db/v1.54.0/db.json"
 SHA256 = "96b8a5746867c832ab56743c05e46e73c9facb04879677df0b356f20496cb6cd"
 RETRIEVED = "2026-10-12"
 LICENSE = "MIT"
-TYPE_COUNT = 2523
+TYPE_COUNT = 2524
 EXTENSION_COUNT = 1245

@@ -1,38 +1,91 @@
-"""Lookups between file extensions and MIME types."""
+"""Module-level lookups backed by the default table."""
 
 from __future__ import annotations
 
-from ._table import EXTENSION_TO_TYPE, TYPE_TO_EXTENSION
-
-
-def _extension(path: str) -> str | None:
-    """Return the final extension of a path, lowercase and without the dot."""
-    name = path.replace("\\", "/").rsplit("/", 1)[-1]
-    dot = name.rfind(".")
-    if dot <= 0:  # no dot, or a leading-dot dotfile such as ".bashrc"
-        return None
-    return name[dot + 1 :].lower() or None
+from ._load import default_table
+from ._models import Guess, MediaTypeInfo
 
 
 def guess_type(path: str) -> str | None:
     """Return the MIME type for a path from its extension, or None if unknown.
 
-    The lookup uses only the final extension, so "photo.tar.gz" is read as a
-    gzip file. It never touches the host registry, so the result is the same on
-    every operating system.
+    The lookup uses the final extension (or a longer compound one when the
+    table defines it), so ``"photo.tar.gz"`` is read as a gzip file. It never
+    touches the host registry, so the result is the same on every operating
+    system. See :func:`guess` to split off the content coding.
     """
-    ext = _extension(path)
-    if ext is None:
-        return None
-    return EXTENSION_TO_TYPE.get(ext)
+    return default_table().guess_type(path)
 
 
 def guess_extension(mime: str) -> str | None:
     """Return the preferred extension (with a leading dot) for a MIME type.
 
-    Any parameters such as "; charset=utf-8" are ignored. Returns None when the
-    type is not in the table.
+    Any parameters such as ``"; charset=utf-8"`` are ignored. Returns None when
+    the type is not in the table or has no extension.
     """
-    key = mime.split(";", 1)[0].strip().lower()
-    ext = TYPE_TO_EXTENSION.get(key)
-    return None if ext is None else "." + ext
+    return default_table().guess_extension(mime)
+
+
+def guess(path: str) -> Guess:
+    """Return the type, content coding and matched extension of a path.
+
+    ``guess("site.tar.gz")`` is ``Guess("application/x-tar", "gzip", "tar")``.
+    See :meth:`MimeTable.guess`.
+    """
+    return default_table().guess(path)
+
+
+def type_for_extension(ext: str) -> str | None:
+    """Return the MIME type for one extension, with or without a leading dot.
+
+    ``type_for_extension(".PDF")`` is ``"application/pdf"``. Unknown or
+    malformed extensions give ``None``.
+    """
+    return default_table().type_for_extension(ext)
+
+
+def extensions_for(mime: str) -> tuple[str, ...]:
+    """Return every extension of a type with a leading dot, preferred first.
+
+    ``extensions_for("image/jpeg")`` is ``(".jpg", ".jpeg", ".jpe")``. Unknown
+    types give an empty tuple.
+    """
+    return default_table().extensions_for(mime)
+
+
+def media_type_info(mime: str) -> MediaTypeInfo | None:
+    """Return a :class:`MediaTypeInfo` for a type, or ``None`` when unknown."""
+    return default_table().media_type_info(mime)
+
+
+def default_charset(mime: str) -> str | None:
+    """Return the default charset of a type (``"utf-8"`` for ``text/*``) or None.
+
+    See :meth:`MimeTable.default_charset` for the exact policy.
+    """
+    return default_table().default_charset(mime)
+
+
+def is_textual(mime: str) -> bool:
+    """Return whether a type carries text. See :meth:`MimeTable.is_textual`."""
+    return default_table().is_textual(mime)
+
+
+def is_compressible(mime: str) -> bool | None:
+    """Return whether a type usually compresses well, or None when unknown."""
+    return default_table().is_compressible(mime)
+
+
+def content_type_for(path: str) -> str | None:
+    """Return a Content-Type value for a path, such as ``"text/html; charset=utf-8"``."""
+    return default_table().content_type_for(path)
+
+
+def known_types() -> tuple[str, ...]:
+    """Return every MIME type in the default table, sorted."""
+    return default_table().known_types()
+
+
+def known_extensions() -> tuple[str, ...]:
+    """Return every extension the default table resolves, with a leading dot, sorted."""
+    return default_table().known_extensions()

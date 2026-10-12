@@ -1,0 +1,59 @@
+"""Loading the embedded table and its provenance."""
+
+from __future__ import annotations
+
+import functools
+import gzip
+import importlib.resources
+import json
+from typing import Any, cast, get_args
+
+from . import _meta
+from ._models import Source, SourceInfo
+from ._table import Entry, MimeTable
+
+_SOURCES = frozenset(get_args(Source))
+
+
+def _entry(mime: str, row: Any) -> Entry:
+    source, charset, compressible, exts = row
+    if source not in _SOURCES:
+        raise RuntimeError(f"corrupt embedded table: bad source for {mime!r}")
+    return Entry(cast(Source, source), charset, compressible, tuple(exts))
+
+
+def load_raw() -> dict[str, Any]:
+    """Return the decoded embedded table as stored in the package."""
+    blob = importlib.resources.files("mimeguess").joinpath("_data.json.gz").read_bytes()
+    return cast("dict[str, Any]", json.loads(gzip.decompress(blob)))
+
+
+@functools.cache
+def default_table() -> MimeTable:
+    """Return the shared table built from the embedded mime-db snapshot.
+
+    It is loaded on first use and cached. The table is immutable, so sharing it
+    is safe; use :meth:`MimeTable.with_types` to derive a customised copy.
+    """
+    raw = load_raw()
+    types = {mime: _entry(mime, row) for mime, row in raw["types"].items()}
+    return MimeTable(types, raw["extensions"])
+
+
+def data_source() -> SourceInfo:
+    """Return where the embedded table comes from and how big it is.
+
+    The values describe the committed snapshot the table was generated from:
+    the upstream release, the exact URL it was fetched from, the SHA-256 of the
+    fetched bytes, the retrieval date and the upstream license.
+    """
+    return SourceInfo(
+        name=_meta.NAME,
+        version=_meta.VERSION,
+        url=_meta.URL,
+        sha256=_meta.SHA256,
+        retrieved=_meta.RETRIEVED,
+        license=_meta.LICENSE,
+        type_count=_meta.TYPE_COUNT,
+        extension_count=_meta.EXTENSION_COUNT,
+    )

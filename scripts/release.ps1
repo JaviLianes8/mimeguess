@@ -1,15 +1,17 @@
 # Build and upload to PyPI. Run scripts/check.ps1 first.
-# The name must not already exist on PyPI; the token is read from a secret store, never git.
+# This version must not already exist on PyPI; the token is read from a secret store, never git.
 $ErrorActionPreference = "Stop"
 
 # Works on both Windows PowerShell 5.1 and pwsh 7 (generic catch, no PS7-only types).
+$version = (python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])").Trim()
+if ($LASTEXITCODE) { throw "Could not read the version from pyproject.toml." }
 $taken = $true
 try {
-    Invoke-WebRequest -UseBasicParsing "https://pypi.org/pypi/mimeguess/json" | Out-Null
+    Invoke-WebRequest -UseBasicParsing "https://pypi.org/pypi/mimeguess/$version/json" | Out-Null
 } catch {
     if ($_.Exception.Response.StatusCode.value__ -eq 404) { $taken = $false } else { throw }
 }
-if ($taken) { throw "The name 'mimeguess' already exists on PyPI. Choose another before publishing." }
+if ($taken) { throw "mimeguess $version already exists on PyPI. Bump the version before publishing." }
 
 $token = $env:PYPI_TOKEN
 if (-not $token -and (Test-Path "C:\secrets\pypi-token.txt")) {

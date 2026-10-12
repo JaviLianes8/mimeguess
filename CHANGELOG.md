@@ -34,8 +34,10 @@ All notable changes to this project are documented here. The format follows
 - Answers now follow mime-db where the 0.1.0 hand-written table differed:
   `.ico` is `image/vnd.microsoft.icon`, `.exe` is `application/x-msdos-program`,
   `.vcf` is `text/x-vcard`, `.m4v` is `video/x-m4v`, `.cjs` is
-  `application/node`, and one audio extension moved from its own type to
-  `audio/ogg` as mime-db lists it. `guess_extension("image/tiff")` is now
+  `application/node`, `.sqlite` and `.db` are the registered
+  `application/vnd.sqlite3`, and one audio extension moved from its own
+  dedicated type to `audio/ogg` as mime-db lists it, so the reverse lookup of
+  that dedicated type now returns `None`. `guess_extension("image/tiff")` is now
   `.tif` and `guess_extension("text/vcard")` is `.vcard`.
 
 ## [0.1.0]

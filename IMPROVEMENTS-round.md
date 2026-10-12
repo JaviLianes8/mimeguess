@@ -13,8 +13,8 @@ their signatures and their documented behaviour.
    supplement keeps the few 0.1.0 extensions that `mime-db` does not list.
 2. **Documented, reproducible conflict resolution.** When several types claim one
    extension (`mp4`, `xml`, `rtf`, `wav`, ...), the generator applies the same
-   scoring as jshttp `mime-types` 3.0.2 (facet, source, top-level type, length),
-   so the answers match the most used Node implementation.
+   scoring as jshttp `mime-types` 3.0.2 (facet, source, top-level type, length).
+   Apart from three documented supplement moves, the answers match that package.
 3. **Full type to extension listing with a preferred extension.**
    `extensions_for(type)` returns every extension, preferred first.
 4. **Typed results.** `media_type_info()` returns a frozen `MediaTypeInfo`

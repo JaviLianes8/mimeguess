@@ -25,16 +25,20 @@ file are in `data/README.md`.
 Some extensions are claimed by several types (`mp4`, `xml`, `rtf`, `wav`, ...).
 The generator resolves them with the scoring of jshttp **mime-types 3.0.2**
 (ported in `scripts/_score.py`): standards-tree types beat `vnd.`, which beat
-`x-`; IANA beats Apache, which beats nginx; then `video` > `audio` / `font` >
-`application` > other top-level types; then the shorter name. The test suite
-compares every conflicting extension with the output of the real mime-types
-3.0.2 package, so the answers match the most used Node implementation.
+`x-`; then by source IANA (40) > types mime-db defines itself (30) > Apache
+(20) > nginx (10), which is why `.exe` resolves to the unsourced
+`application/x-msdos-program`; then `video` > `audio` / `font` > `application` >
+other top-level types; then the shorter name. The test suite compares every
+conflicting extension with the output of the real mime-types 3.0.2 package.
+Before the supplement below, every extension matches mime-types 3.0.2.
 
 ### The hand-written supplement
 
 `scripts/_supplement.py` is short and labelled as hand-written. It adds a few
-extensions that mime-db lists no type for (`py`, `cfg`, `sqlite`, `db`, `zst`,
-and registered types `audio/flac` and `application/yaml`), and it moves an
+extensions that mime-db lists no type for (`py`, `cfg`, `sqlite`, `sqlite3`,
+`db`, `zst`, and registered types `audio/flac` and `application/yaml`), lists
+`sqlite` and `db` under `application/x-sqlite3` too so the 0.1.0 reverse lookup
+keeps working, and it moves an
 everyday extension to the front of four types so the preferred extension is the
 familiar one (`.mp3` for `audio/mpeg`, `.ogg` for `audio/ogg`, `.mov` for
 `video/quicktime`, `.aac` for `audio/aac`). It never deletes anything mime-db
@@ -70,8 +74,8 @@ the extensions both know agree. The rest fall into three groups:
 - **More specific types**: `.exe` and `.dll` get Windows program types instead of
   `application/octet-stream`; `.c` and `.h` are `text/x-c` instead of
   `text/plain`; `.rdf` and `.wsdl` get their `+xml` types.
-- **Extensions only the stdlib lists**: for example `.pyc`, `.rst`, `.h5`, `.a`
-  and `.o` are unknown here.
+- **Extensions only the stdlib lists**: for example `.pyc`, `.h5`, `.a` and `.o`
+  are unknown here, and `.rst` (in the stdlib table since 3.12).
 
 ## Recipes
 
@@ -79,11 +83,11 @@ the extensions both know agree. The rest fall into three groups:
 import mimeguess
 
 # Type and content coding, the way a static file server needs them.
-mimeguess.guess("site.tar.gz")     # Guess(type='application/x-tar', encoding='gzip', extension='tar')
-mimeguess.guess("logo.svgz")       # Guess(type='image/svg+xml', encoding='gzip', extension='svg')
+mimeguess.guess("site.tar.gz")  # Guess(type='application/x-tar', encoding='gzip', extension='tar')
+mimeguess.guess("logo.svgz")  # Guess(type='image/svg+xml', encoding='gzip', extension='svg')
 
 # A ready header value.
-mimeguess.content_type_for("index.html")   # 'text/html; charset=utf-8'
+mimeguess.content_type_for("index.html")  # 'text/html; charset=utf-8'
 
 # Everything about a type.
 info = mimeguess.media_type_info("application/ld+json")
@@ -91,8 +95,8 @@ info.source, info.extensions, info.suffix  # ('iana', ('.jsonld',), 'json')
 
 # Your own mappings, without global state.
 table = mimeguess.default_table().with_types({"text/x-typescript": ["ts", "d.ts"]})
-table.guess_type("index.d.ts")     # 'text/x-typescript'
-mimeguess.guess_type("index.ts")   # still 'video/mp2t' (MPEG transport stream)
+table.guess_type("index.d.ts")  # 'text/x-typescript'
+mimeguess.guess_type("index.ts")  # still 'video/mp2t' (MPEG transport stream)
 
 # Check a download really is what its name says.
 with open("report.pdf", "rb") as handle:

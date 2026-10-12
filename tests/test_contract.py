@@ -78,7 +78,7 @@ def test_the_package_ships_type_information_and_its_table() -> None:
 def test_results_are_frozen_dataclasses() -> None:
     for cls in (mimeguess.Guess, mimeguess.MediaTypeInfo, mimeguess.SourceInfo):
         assert dataclasses.is_dataclass(cls)
-        params = cls.__dataclass_params__  # type: ignore[attr-defined]
+        params = getattr(cls, "__dataclass_params__")  # noqa: B009
         assert params.frozen
 
 

@@ -9,5 +9,7 @@ ruff check .
 if ($LASTEXITCODE) { exit 1 }
 mypy --strict src
 if ($LASTEXITCODE) { exit 1 }
+mypy --strict tests scripts
+if ($LASTEXITCODE) { exit 1 }
 pytest
 if ($LASTEXITCODE) { exit 1 }

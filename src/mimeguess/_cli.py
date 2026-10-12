@@ -7,6 +7,7 @@ import dataclasses
 import json
 import sys
 from collections.abc import Callable, Sequence
+from typing import NoReturn
 
 from . import __version__
 from ._guess import (
@@ -39,7 +40,7 @@ on the operating system.
 
 
 class _Parser(argparse.ArgumentParser):
-    def error(self, message: str) -> None:  # type: ignore[override]
+    def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         self.exit(1, f"{self.prog}: error: {message}\n")
 
@@ -147,6 +148,11 @@ def _emit(data: dict[str, object], as_json: bool) -> None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the command line tool and return its exit status."""
+    for stream in (sys.stdout, sys.stderr):
+        # Never crash on a file name the console encoding cannot show.
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="backslashreplace")
     args = _parser().parse_args(argv)
     if args.command == "type":
         return _report(args.paths, _type_of(args.content_type, args.encoding), "no MIME type known")

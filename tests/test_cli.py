@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -90,6 +93,15 @@ def test_usage_errors_exit_one_on_stderr(
         main(args)
     out, err = capsys.readouterr()
     assert exc.value.code == 1 and out == "" and "error" in err
+
+
+def test_unprintable_names_do_not_crash_a_narrow_console() -> None:
+    src = str(Path(__file__).resolve().parents[1] / "src")
+    env = {**os.environ, "PYTHONIOENCODING": "ascii", "PYTHONPATH": src}
+    command = [sys.executable, "-m", "mimeguess", "type", "a.png", "\u0436.png"]
+    result = subprocess.run(command, capture_output=True, env=env, check=False, timeout=60)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines()[1] == rb"\u0436.png" + b"\timage/png"
 
 
 def test_help_shows_runnable_examples(capsys: pytest.CaptureFixture[str]) -> None:

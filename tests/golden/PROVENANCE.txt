@@ -1,0 +1,18 @@
+mime-types-3.0.2-conflicts.json
+
+What: for every extension that more than one mime-db 1.54.0 type claims, the
+type that the real jshttp mime-types 3.0.2 package returns (its `types` map).
+
+How it was produced (2026-10-12), not written by hand:
+  npm pack mime-types@3.0.2 mime-db@1.54.0
+  (both tarballs unpacked into node_modules; db.json sha256
+   96b8a5746867c832ab56743c05e46e73c9facb04879677df0b356f20496cb6cd, the same
+   bytes as data/mime-db-1.54.0.json.gz)
+  node -e "const m=require('mime-types'); const db=require('mime-db'); ..."
+  writing {extension: m.types[extension]} for each conflicting extension,
+  sorted by extension, JSON with two-space indent.
+
+Package URLs:
+  https://registry.npmjs.org/mime-types/-/mime-types-3.0.2.tgz
+  https://registry.npmjs.org/mime-db/-/mime-db-1.54.0.tgz
+License of mime-types and mime-db: MIT (see LICENSES/).

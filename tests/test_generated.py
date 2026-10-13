@@ -1,4 +1,8 @@
-"""The embedded table is exactly what the committed generator makes from the snapshot."""
+"""The embedded table is exactly what the committed generator makes from the snapshot.
+
+The mime-db snapshot is not committed: `python scripts/fetch_upstream.py` fetches it as
+pinned in data/MANIFEST.json. The tests that read it skip until then.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +12,8 @@ import json
 import sys
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 import mimeguess
 from mimeguess._load import load_raw
@@ -20,6 +26,10 @@ import _supplement  # noqa: E402
 import generate_table  # noqa: E402
 
 GOLDEN = ROOT / "tests" / "golden" / "mime-types-3.0.2-conflicts.json"
+needs_snapshot = pytest.mark.skipif(
+    not generate_table.SNAPSHOT.is_file(),
+    reason="mime-db snapshot not fetched; run python scripts/fetch_upstream.py",
+)
 
 
 def _pure_build() -> dict[str, Any]:
@@ -36,6 +46,7 @@ def _pure_build() -> dict[str, Any]:
     return result
 
 
+@needs_snapshot
 def test_the_embedded_table_equals_the_generator_output() -> None:
     data, meta = generate_table.generate()
     embedded = gzip.decompress((ROOT / "src" / "mimeguess" / "_data.json.gz").read_bytes())
@@ -43,10 +54,12 @@ def test_the_embedded_table_equals_the_generator_output() -> None:
     assert (ROOT / "src" / "mimeguess" / "_meta.py").read_text(encoding="utf-8") == meta
 
 
+@needs_snapshot
 def test_the_generator_check_mode_passes() -> None:
     assert generate_table.main(["--check"]) == 0
 
 
+@needs_snapshot
 def test_the_snapshot_checksum_matches_the_recorded_provenance() -> None:
     digest = hashlib.sha256(generate_table.snapshot_bytes()).hexdigest()
     assert digest == mimeguess.data_source().sha256
@@ -60,6 +73,7 @@ def test_the_package_loads_the_same_table_it_ships() -> None:
     assert len(mimeguess.known_extensions()) == len(raw["extensions"])
 
 
+@needs_snapshot
 def test_every_mime_db_type_and_extension_is_kept() -> None:
     db = json.loads(generate_table.snapshot_bytes())
     raw = load_raw()
@@ -73,6 +87,7 @@ def test_every_mime_db_type_and_extension_is_kept() -> None:
         ]
 
 
+@needs_snapshot
 def test_conflicts_resolve_exactly_like_mime_types_3_0_2() -> None:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     db = json.loads(generate_table.snapshot_bytes())
@@ -84,6 +99,7 @@ def test_conflicts_resolve_exactly_like_mime_types_3_0_2() -> None:
     assert {ext: _pure_build()["extensions"][ext] for ext in golden} == golden
 
 
+@needs_snapshot
 def test_the_supplement_moves_only_the_documented_extensions() -> None:
     pure = _pure_build()["extensions"]
     shipped = load_raw()["extensions"]
@@ -93,6 +109,7 @@ def test_the_supplement_moves_only_the_documented_extensions() -> None:
     assert added == {"cfg", "db", "py", "sqlite", "sqlite3", "zst"}
 
 
+@needs_snapshot
 def test_preferred_extension_reordering_only_reorders() -> None:
     pure = _pure_build()["types"]
     shipped = load_raw()["types"]

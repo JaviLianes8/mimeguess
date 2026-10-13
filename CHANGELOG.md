@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Changed
+
+- The mime-db and Apache httpd snapshots are no longer committed. `data/MANIFEST.json`
+  pins them (URL, revision, size, sha256, licence) and `scripts/fetch_upstream.py` fetches
+  them; the generator check and the tests that read them skip until then. The generated
+  table stays in the package and the `LICENSES/` notices ship in the wheel.
+- The sdist ships only the sources, tests, scripts, the manifest and the docs.
+
 ## [0.2.0]
 
 ### Added

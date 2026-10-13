@@ -10,3 +10,8 @@ dist/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Upstream data, fetched locally by scripts/fetch_upstream.py; only the manifest and README are tracked.
+data/*
+!data/MANIFEST.json
+!data/README.md

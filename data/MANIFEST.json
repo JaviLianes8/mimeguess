@@ -1,0 +1,20 @@
+{
+  "mime-db-1.54.0.json": {
+    "title": "jshttp mime-db 1.54.0, db.json",
+    "url": "https://raw.githubusercontent.com/jshttp/mime-db/v1.54.0/db.json",
+    "revision": "tag v1.54.0",
+    "fetched": "2026-10-13",
+    "size": 203840,
+    "sha256": "96b8a5746867c832ab56743c05e46e73c9facb04879677df0b356f20496cb6cd",
+    "licence": "MIT, (c) 2014 Jonathan Ong, (c) 2015-2022 Douglas Christopher Wilson; see LICENSES/mime-db.txt"
+  },
+  "apache-httpd-mime.types-r1930012": {
+    "title": "Apache httpd docs/conf/mime.types",
+    "url": "https://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types?p=1930012",
+    "revision": "SVN revision 1930012",
+    "fetched": "2026-10-13",
+    "size": 61109,
+    "sha256": "f0aca42aa6ae1ea0c856e363d45a6abd67b3afe1bd59e64f256c5610fc84505b",
+    "licence": "public domain per the file header (Apache httpd itself is Apache-2.0)"
+  }
+}

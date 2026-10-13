@@ -3,8 +3,10 @@
 ## What the table is
 
 The table is generated, not written by hand. `scripts/generate_table.py` reads a
-committed snapshot of jshttp **mime-db 1.54.0** (`data/mime-db-1.54.0.json.gz`,
-MIT) and writes `src/mimeguess/_data.json.gz` plus `src/mimeguess/_meta.py`.
+snapshot of jshttp **mime-db 1.54.0** (`data/mime-db-1.54.0.json`, MIT), which is
+not committed: `python scripts/fetch_upstream.py` fetches it as pinned in
+`data/MANIFEST.json`. The generator writes `src/mimeguess/_data.json.gz` plus
+`src/mimeguess/_meta.py`.
 mime-db merges three upstreams and records which one each type came from:
 
 | `source` | Meaning |

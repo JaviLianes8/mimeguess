@@ -6,7 +6,12 @@ Thanks for taking the time. This project keeps a small, predictable shape.
 
 ```
 pip install -r requirements-dev.txt
+python scripts/fetch_upstream.py
 ```
+
+The fetch step is optional: it downloads the upstream data listed in
+`data/MANIFEST.json` (checked against their sha256) into `data/`, which git ignores.
+The generator check and the tests that need the files skip until they are there.
 
 ## Before you open a pull request
 

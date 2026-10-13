@@ -27,7 +27,7 @@ from ._models import Guess, InvalidMediaType, MediaTypeInfo, Source, SourceInfo
 from ._sniff import sniff
 from ._table import MimeTable
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "Guess",

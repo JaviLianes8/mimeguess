@@ -4,11 +4,14 @@ The stdlib side uses ``mimetypes.MimeTypes(filenames=())``: an instance built
 only from the tables compiled into Python. ``mimetypes.init(files=[])`` is not
 used because it still reads the Windows registry and the host ``knownfiles``
 (it appends the given files to them), so its answers vary per machine.
+
+The Apache file is not committed: `python scripts/fetch_upstream.py` fetches it as pinned
+in data/MANIFEST.json, and its tests skip until then.
 """
 
 from __future__ import annotations
 
-import gzip
+import hashlib
 import json
 import mimetypes
 from pathlib import Path
@@ -73,10 +76,15 @@ def test_content_coding_matches_the_standard_library(name: str) -> None:
     assert ours.type == std_type
 
 
+APACHE = ROOT / "data" / "apache-httpd-mime.types-r1930012"
+needs_apache = pytest.mark.skipif(
+    not APACHE.is_file(), reason="Apache mime.types not fetched; run scripts/fetch_upstream.py"
+)
+
+
 def _apache() -> dict[str, list[str]]:
-    data = ROOT / "data" / "apache-httpd-mime.types-r1930012.gz"
     table: dict[str, list[str]] = {}
-    for line in gzip.decompress(data.read_bytes()).decode("utf-8").splitlines():
+    for line in APACHE.read_text(encoding="utf-8").splitlines():
         if line and not line.startswith("#"):
             mime, *exts = line.split()
             for ext in exts:
@@ -84,12 +92,20 @@ def _apache() -> dict[str, list[str]]:
     return table
 
 
+@needs_apache
+def test_the_apache_file_matches_the_manifest() -> None:
+    entry = json.loads((ROOT / "data" / "MANIFEST.json").read_text(encoding="utf-8"))[APACHE.name]
+    assert hashlib.sha256(APACHE.read_bytes()).hexdigest() == entry["sha256"]
+
+
+@needs_apache
 def test_every_apache_extension_is_known() -> None:
     apache = _apache()
     assert len(apache) > 900
     assert [ext for ext in apache if mimeguess.type_for_extension(ext) is None] == []
 
 
+@needs_apache
 def test_apache_disagreements_are_only_resolved_conflicts() -> None:
     golden = json.loads((ROOT / "tests" / "golden" / "mime-types-3.0.2-conflicts.json").read_text())
     explained = set(golden) | {"flac"}  # flac: see scripts/_supplement.py

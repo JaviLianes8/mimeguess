@@ -7,7 +7,7 @@ How it was produced (2026-10-12), not written by hand:
   npm pack mime-types@3.0.2 mime-db@1.54.0
   (both tarballs unpacked into node_modules; db.json sha256
    96b8a5746867c832ab56743c05e46e73c9facb04879677df0b356f20496cb6cd, the same
-   bytes as data/mime-db-1.54.0.json.gz)
+   bytes as data/mime-db-1.54.0.json, see data/MANIFEST.json)
   node -e "const m=require('mime-types'); const db=require('mime-db'); ..."
   writing {extension: m.types[extension]} for each conflicting extension,
   sorted by extension, JSON with two-space indent.

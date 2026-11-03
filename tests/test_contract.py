@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import dataclasses
 import importlib.resources
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _project() -> dict[str, Any]:
-    tomllib = pytest.importorskip("tomllib")  # Python 3.11+
+    tomllib = pytest.importorskip("tomllib" if sys.version_info >= (3, 11) else "tomli")
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     project: dict[str, Any] = tomllib.loads(text)["project"]
     return project
@@ -52,6 +54,7 @@ PUBLIC_API: list[str] = [
 
 def test_all_lists_exactly_the_public_api() -> None:
     assert sorted(mimeguess.__all__) == sorted(PUBLIC_API)
+    assert {name for name in vars(mimeguess) if not name.startswith("_")} == set(PUBLIC_API)
 
 
 def test_every_exported_name_resolves_and_is_documented() -> None:
@@ -73,6 +76,8 @@ def test_the_package_ships_type_information_and_its_table() -> None:
     files = importlib.resources.files("mimeguess")
     assert files.joinpath("py.typed").is_file()
     assert files.joinpath("_data.json.gz").is_file()
+    if os.environ.get("MIMEGUESS_INSTALLED"):
+        assert "site-packages" in str(files)
 
 
 def test_results_are_frozen_dataclasses() -> None:

@@ -28,7 +28,9 @@ SUFFIX_ALIASES: dict[str, str] = {
 
 def basename(path: str) -> str:
     """Return the last path component, treating ``/`` and ``\\`` as separators."""
-    return path.replace("\\", "/").rsplit("/", 1)[-1]
+    if not isinstance(path, str):
+        raise TypeError("path must be a string")
+    return str.replace(path, "\\", "/").rsplit("/", 1)[-1]
 
 
 def segments(path: str) -> list[str]:
@@ -49,12 +51,6 @@ def segments(path: str) -> list[str]:
             break
         tail.append(part)
     return tail[::-1]
-
-
-def candidates(parts: list[str], max_dots: int) -> list[str]:
-    """Return dotted suffixes from longest to shortest, capped by ``max_dots``."""
-    start = max(0, len(parts) - max_dots - 1)
-    return [".".join(parts[i:]) for i in range(start, len(parts))]
 
 
 def expand_alias(parts: list[str]) -> list[str]:
@@ -84,9 +80,9 @@ def normalize_extension(ext: str) -> str:
             contains whitespace, ``/`` or ``\\``.
     """
     if not isinstance(ext, str):
-        raise ValueError(f"extension must be a string, got {type(ext).__name__}")
-    key = ext.lower().removeprefix(".")
+        raise ValueError("extension must be a string")
+    key = str.lower(ext).removeprefix(".")
     bad = not key or any(not part for part in key.split("."))
     if bad or any(ch.isspace() or ch in "/\\" for ch in key):
-        raise ValueError(f"not a valid file extension: {ext!r}")
+        raise ValueError("not a valid file extension")
     return key

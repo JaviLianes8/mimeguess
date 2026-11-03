@@ -57,7 +57,7 @@ The standard library module is a good default, but its answers are not fixed:
 - `mimetypes.init(files=[])` does not avoid that: it still reads the Windows
   registry and the default `knownfiles`, and appends your list to them.
 - The built-in table changes between Python versions (`.rtf`, `.wav`, `.mkv`,
-  `.avi` and others changed in 3.12 to 3.14) and has about 150 to 200 entries.
+  `.avi` and others changed in 3.12 to 3.14) so its coverage also depends on Python.
 
 `mimeguess` ships one table inside the wheel and never reads the host, so the
 same input gives the same answer on every machine and Python version. The value
@@ -143,9 +143,6 @@ mimeguess sniff download.bin
 mimeguess source
 ```
 
-Unknown inputs are reported on stderr and the exit status is 1; usage errors
-also exit 1.
-
 ## Regenerating the table
 
 ```
@@ -154,3 +151,49 @@ python scripts/generate_table.py --check   # fail if they are stale
 ```
 
 To move to a new mime-db release, follow `data/README.md`.
+
+## Stable input and error contracts
+
+All lookup functions accept strings. MIME queries ignore parameters after the first
+semicolon and surrounding whitespace. `guess_type()`, `type_for_extension()`,
+`guess_extension()`, `content_type_for()`, `media_type_info()` and `is_compressible()`
+return `None` for unknown or malformed lookup strings; `extensions_for()` returns `()`.
+`guess()` always returns a `Guess`, with `None` for an unknown type and extension;
+its encoding can still identify a recognized trailing content coding.
+
+Valid unregistered MIME names can have inferred metadata. `default_charset()` returns
+`utf-8` for any `text/*` name and otherwise `None` unless the table declares a charset.
+`is_textual()` returns `True` for `text/*`, a declared charset, or a `+json`, `+xml`,
+`+yaml` or `+json-seq` suffix; otherwise it returns `False`. `structured_suffix()`
+extracts any syntactically valid suffix without requiring a registered type.
+Malformed MIME strings return `None` for charset and suffix, and `False` for textuality.
+
+Paths are filenames, not URLs: query strings and fragments remain; no percent decoding
+is performed. Both slash forms separate directories. Leading dots do not create extensions;
+empty segments stop compound matching. `guess()` removes only one trailing content coding.
+
+`essence()` raises `InvalidMediaType`, a `ValueError`, for malformed values.
+`with_types()` raises `ValueError` for invalid MIME names, malformed extensions, an
+empty extension iterable, or a string used instead of an extension iterable. Other
+wrong argument types are outside the typed contract; path functions and `sniff()`
+explicitly raise `TypeError`. Lookup functions never read files.
+
+`sniff()` examines at most 16 bytes. C-contiguous memoryviews are interpreted as raw
+bytes, including empty multidimensional views, which return `None`. Other supported
+views are one-dimensional with one-byte elements. Fortran-only contiguous views and
+other unsupported layouts raise `TypeError`; released views raise `ValueError`.
+String, bytes and bytearray subclasses are read through their underlying values;
+overridden scalar methods do not control parsing or expand the sniffer's byte limit.
+Recognizing a signature does not validate the file or implement the WHATWG browser algorithm.
+
+Validation errors omit input values. CLI errors use one-based input numbers and usage
+errors suggest `--help`, without echoing arguments. They exit 1; successful commands exit 0.
+The `sniff` command reads files (or `-` for standard input); other commands do no file I/O.
+
+Obtain `MimeTable` values through `default_table()` and `with_types()`; its constructor
+and underscore attributes are internal. Overrides deduplicate extensions, keep original
+metadata and preserve other types' reverse lists. Iteration order breaks conflicts: the
+last assignment wins. Frozen result dataclasses store typed fields without validation.
+
+The 1.0.0 release keeps all previous table answers; behavior changes are in the
+[CHANGELOG](https://github.com/JaviLianes8/mimeguess/blob/main/CHANGELOG.md).

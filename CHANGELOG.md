@@ -6,6 +6,68 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-02
+
+### Stable
+
+- The 23 exported names, existing lookup signatures, return types and defaults.
+- The pinned mime-db 1.54.0 table: 2,524 types and 1,245 extensions; all previous
+  filename, MIME, charset, compression and override lookup results are retained.
+- Python 3.10 through 3.14, typed public API, console command and module command.
+
+### Changed
+
+- Validation errors no longer include caller values or type names. CLI errors identify
+  inputs by their one-based position instead of echoing paths, media types or arguments;
+  usage errors provide a generic reason and still exit 1.
+- Non-string paths raise a documented `TypeError` instead of an incidental `AttributeError`.
+- `sniff()` reads the first 16 raw bytes of C-contiguous memoryviews, including wide-element
+  and multidimensional views. Other supported views have one dimension and one-byte
+  elements; Fortran-only contiguous and other unsupported layouts raise `TypeError`
+  instead of incidental buffer errors. Released views retain their `ValueError` behavior.
+- Result classes, `MimeTable` and `InvalidMediaType` have public module identities for
+  serialization. Existing private import locations for result classes remain usable.
+- The incidental `annotations` attribute is removed from the package namespace;
+  `__all__` now describes exactly the public names.
+- Compound lookups only construct suffixes whose lengths occur in the table, avoiding
+  quadratic allocation for very long custom extensions. Override merging uses set
+  membership so repeated large extension lists also remain linear.
+- Runnable API docstrings, external-source checks, seeded properties, packaging and
+  error contracts added. Source downloads can be redirected with `MIMEGUESS_DATA_DIR`.
+
+### Fixed
+
+- Empty C-contiguous multidimensional views return `None` from `sniff()` before
+  casting, restoring the empty-input behavior.
+- `with_types()` accumulates updates for MIME names that normalize to the same name
+  without repeatedly rebuilding earlier extension lists. Preferred order, metadata
+  and last-assignment precedence remain unchanged.
+- Bytes and bytearray subclasses cannot override slicing to expand the sniffer's
+  16-byte read. String subclasses use base-string operations for MIME, path and
+  extension parsing and override validation, retaining bounded validation errors.
+- The `info` command identifies an unknown MIME type as `input 1` in its error.
+- README and GUIDE describe charset, textual, suffix and `Guess` fallbacks; provenance
+  docstrings distinguish the fetched snapshot from the committed derived table.
+- Contracts cover backslash separators with hidden filenames, every provenance field,
+  and distinct `True`, `False` and unknown compressibility in plain CLI output.
+- Sniff contracts reject prefix substitution and exceptions from bytes and bytearray
+  subclass slicing overrides, preserving the existing underlying-buffer behavior.
+- Sniff contracts also ignore misleading or raising subclass truthiness, length and
+  prefix-method overrides, and enforce bounded copying for large strided memoryviews.
+  Runtime behavior and the public API are unchanged.
+- Sniff contracts reject direct array buffers, accept signed one-byte views in both
+  stride directions, require the complete SQLite signature in strided views, and
+  reject case-altered magic signatures. Runtime behavior and the public API are unchanged.
+- Sniff contracts require magic signatures at offset zero for bytes, bytearray and
+  positive and negative strided memoryviews, rejecting signatures after unrelated bytes.
+  Runtime behavior and the public API are unchanged.
+- Sniff contracts reject a bzip2 marker or a RIFF marker that appears after unrelated
+  bytes, even when a valid version digit or form type sits where the format expects it.
+  Runtime behavior and the public API are unchanged.
+- Sniff contracts reject a bare 3-byte `BZh` and RIFF headers one byte short of a form
+  type for bytes, bytearray and positive and negative strided memoryviews, and pin the
+  documented 16-byte sniff prefix. Runtime behavior and the public API are unchanged.
+
 ## [0.2.1]
 
 ### Changed

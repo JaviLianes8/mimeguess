@@ -34,7 +34,7 @@ def essence(value: str) -> str:
     """
     key = lenient_essence(value)
     if key is None:
-        raise InvalidMediaType(f"not a type/subtype media type: {value!r}")
+        raise InvalidMediaType("not a type/subtype media type")
     return key
 
 
@@ -42,7 +42,7 @@ def lenient_essence(value: str) -> str | None:
     """Like :func:`essence` but return ``None`` instead of raising."""
     if not isinstance(value, str):
         return None
-    head = value.split(";", 1)[0].strip()
+    head = str.split(value, ";", 1)[0].strip()
     match = _ESSENCE.fullmatch(head)
     return head.lower() if match else None
 
@@ -52,6 +52,10 @@ def structured_suffix(mime: str) -> str | None:
 
     ``application/ld+json`` gives ``"json"`` and ``image/svg+xml`` gives
     ``"xml"``. Returns ``None`` when there is no suffix or the value is malformed.
+
+    >>> import mimeguess as m
+    >>> m.structured_suffix("image/svg+xml")
+    'xml'
     """
     key = lenient_essence(mime)
     if key is None:

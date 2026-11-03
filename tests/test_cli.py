@@ -32,7 +32,7 @@ def test_type_of_several_paths_prefixes_each_line(capsys: pytest.CaptureFixture[
 def test_unknown_inputs_go_to_stderr_with_exit_one(capsys: pytest.CaptureFixture[str]) -> None:
     code, out, err = run(capsys, "type", "a.png", "x.unknownext")
     assert code == 1 and out == "a.png\timage/png\n"
-    assert "x.unknownext" in err
+    assert "no MIME type known for input 2" in err
 
 
 def test_content_type_and_encoding_modes(capsys: pytest.CaptureFixture[str]) -> None:
@@ -46,7 +46,7 @@ def test_ext_lists_extensions(capsys: pytest.CaptureFixture[str]) -> None:
     assert run(capsys, "ext", "image/jpeg")[1] == ".jpg .jpeg .jpe\n"
     assert run(capsys, "ext", "--preferred", "audio/mpeg")[1] == ".mp3\n"
     code, _, err = run(capsys, "ext", "application/x-nope")
-    assert code == 1 and "application/x-nope" in err
+    assert code == 1 and "no extension known for input 1" in err
 
 
 def test_info_text_and_json(capsys: pytest.CaptureFixture[str]) -> None:
@@ -97,7 +97,8 @@ def test_usage_errors_exit_one_on_stderr(
 
 def test_unprintable_names_do_not_crash_a_narrow_console() -> None:
     src = str(Path(__file__).resolve().parents[1] / "src")
-    env = {**os.environ, "PYTHONIOENCODING": "ascii", "PYTHONPATH": src}
+    search_path = "" if os.environ.get("MIMEGUESS_INSTALLED") else src
+    env = {**os.environ, "PYTHONIOENCODING": "ascii", "PYTHONPATH": search_path}
     command = [sys.executable, "-m", "mimeguess", "type", "a.png", "\u0436.png"]
     result = subprocess.run(command, capture_output=True, env=env, check=False, timeout=60)
     assert result.returncode == 0, result.stderr

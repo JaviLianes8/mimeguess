@@ -55,12 +55,29 @@ def sniff(data: bytes | bytearray | memoryview) -> str | None:
     the container: a ``.docx``, ``.jar`` or ``.epub`` file is ``application/zip``.
     Use it to double-check an extension, not to replace one.
 
+    C-contiguous memoryviews are read as raw bytes. Strided views must be
+    one-dimensional with one-byte elements. Only the first 16 bytes are read.
+    Fortran-only contiguous views are unsupported.
+
     Raises:
-        TypeError: if ``data`` is not bytes-like (for example a ``str``).
+        TypeError: if ``data`` is not bytes-like or has an unsupported view layout.
+        ValueError: if a memoryview has already been released.
+
+    >>> import mimeguess as m
+    >>> m.sniff(b"%PDF-1.7")
+    'application/pdf'
     """
     if not isinstance(data, (bytes, bytearray, memoryview)):
-        raise TypeError(f"sniff() needs bytes, got {type(data).__name__}")
-    head = bytes(data[:SNIFF_BYTES])
+        raise TypeError("sniff() needs bytes, bytearray or memoryview")
+    view = memoryview(data)
+    if view.c_contiguous:
+        if view.nbytes == 0:
+            return None
+        head = bytes(view.cast("B")[:SNIFF_BYTES])
+    elif view.ndim == 1 and view.itemsize == 1:
+        head = bytes(view[:SNIFF_BYTES])
+    else:
+        raise TypeError("sniff() needs a C-contiguous or one-byte one-dimensional view")
     for prefix, mime in _PREFIXES:
         if head.startswith(prefix):
             return mime

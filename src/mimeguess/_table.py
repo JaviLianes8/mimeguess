@@ -2,25 +2,17 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
-from typing import NamedTuple
 
-from ._mediatype import lenient_essence, real_charset, structured_suffix, textual
-from ._models import Guess, MediaTypeInfo, Source
-from ._paths import candidates, expand_alias, normalize_extension, segments, split_encoding
-
-
-class Entry(NamedTuple):
-    """Internal row: one MIME type and what the table knows about it."""
-
-    source: Source
-    charset: str | None
-    compressible: bool | None
-    extensions: tuple[str, ...]  # lowercase, no leading dot, preferred first
+from ._mediatype import lenient_essence
+from ._models import Guess
+from ._paths import expand_alias, normalize_extension, segments, split_encoding
+from ._table_info import Entry, _TableInfo
 
 
-class MimeTable:
+class MimeTable(_TableInfo):
     """An immutable mapping between file extensions and MIME types.
 
     The package-level functions use :func:`default_table`. Build a variant with
@@ -29,14 +21,18 @@ class MimeTable:
 
     Obtain tables from :func:`default_table` and :meth:`with_types`; the
     constructor is internal and its arguments may change.
+
+    >>> import mimeguess as m
+    >>> isinstance(m.default_table(), m.MimeTable)
+    True
     """
 
-    __slots__ = ("_extensions", "_max_dots", "_types")
+    __slots__ = ("_extensions", "_lengths", "_types")
 
     def __init__(self, types: Mapping[str, Entry], extensions: Mapping[str, str]) -> None:
         self._types = MappingProxyType(dict(types))
         self._extensions = MappingProxyType(dict(extensions))
-        self._max_dots = max((ext.count(".") for ext in self._extensions), default=0)
+        self._lengths = tuple(sorted({len(ext) for ext in self._extensions}, reverse=True))
 
     def with_types(self, mapping: Mapping[str, Iterable[str]]) -> MimeTable:
         """Return a new table where the given extensions map to the given types.
@@ -52,23 +48,36 @@ class MimeTable:
 
         Raises:
             ValueError: on a malformed type or extension, or an empty list.
+
+        >>> import mimeguess as m
+        >>> m.default_table().with_types({"text/x-demo": ["demo"]}).guess_type("a.demo")
+        'text/x-demo'
         """
         types = dict(self._types)
         extensions = dict(self._extensions)
+        updates: dict[str, OrderedDict[str, None]] = {}
         for mime, exts in mapping.items():
             key = lenient_essence(mime)
-            if key is None or key != mime.strip().lower():
-                raise ValueError(f"not a bare type/subtype media type: {mime!r}")
+            if key is None or key != str.strip(mime).lower():
+                raise ValueError("not a bare type/subtype media type")
             if isinstance(exts, str):
-                raise ValueError(f"extensions for {mime!r} must be a list, not a string")
+                raise ValueError("extensions must be an iterable of strings, not a string")
             new = list(dict.fromkeys(normalize_extension(ext) for ext in exts))
             if not new:
-                raise ValueError(f"no extensions given for {mime!r}")
-            old = types.get(key, Entry("custom", None, None, ()))
-            merged = (*new, *(ext for ext in old.extensions if ext not in new))
-            types[key] = old._replace(extensions=merged)
+                raise ValueError("no extensions given")
+            if key not in updates:
+                old = types.get(key, Entry("custom", None, None, ()))
+                updates[key] = OrderedDict.fromkeys(old.extensions)
+            ordered = updates[key]
+            # Move only this batch, so normalized aliases never rescan prior batches.
+            for ext in reversed(new):
+                ordered[ext] = None
+                ordered.move_to_end(ext, last=False)
             for ext in new:
                 extensions[ext] = key
+        for key, ordered in updates.items():
+            old = types.get(key, Entry("custom", None, None, ()))
+            types[key] = old._replace(extensions=tuple(ordered))
         return MimeTable(types, extensions)
 
     def type_for_extension(self, ext: str) -> str | None:
@@ -76,6 +85,10 @@ class MimeTable:
 
         The whole value is one extension; it is not split. Returns ``None`` when
         the extension is unknown or malformed.
+
+        >>> from mimeguess import default_table
+        >>> default_table().type_for_extension(".PDF")
+        'application/pdf'
         """
         try:
             key = normalize_extension(ext)
@@ -84,7 +97,14 @@ class MimeTable:
         return self._extensions.get(key)
 
     def _lookup(self, parts: list[str]) -> tuple[str, str] | tuple[None, None]:
-        for ext in candidates(parts, self._max_dots):
+        name = ".".join(parts)
+        # Candidate work is bounded by the stored extension lengths, even when
+        # a custom extension contains thousands of dots.
+        for length in self._lengths:
+            start = len(name) - length
+            if start < 0 or (start and name[start - 1] != "."):
+                continue
+            ext = name[start:]
             mime = self._extensions.get(ext)
             if mime is not None:
                 return mime, ext
@@ -97,6 +117,10 @@ class MimeTable:
         table ``backup.tar.gz`` is ``application/gzip``. Short forms the table
         does not list are read as their long form, so ``backup.tgz`` is also
         ``application/gzip``. Use :meth:`guess` to separate the content coding.
+
+        >>> import mimeguess as m
+        >>> m.default_table().guess_type("report.pdf")
+        'application/pdf'
         """
         parts = segments(path)
         mime = self._lookup(parts)[0]
@@ -109,92 +133,27 @@ class MimeTable:
         standard library rules: ``a.tar.gz`` is ``application/x-tar`` with
         encoding ``gzip``, ``a.tgz`` is the same, and a lone ``a.gz`` has encoding
         ``gzip`` and no type.
+
+        >>> import mimeguess as m
+        >>> m.default_table().guess("site.tar.gz")
+        Guess(type='application/x-tar', encoding='gzip', extension='tar')
         """
         parts, encoding = split_encoding(segments(path))
         mime, ext = self._lookup(parts)
         return Guess(type=mime, encoding=encoding, extension=ext)
-
-    def extensions_for(self, mime: str) -> tuple[str, ...]:
-        """Return every extension of a type with a leading dot, preferred first.
-
-        Parameters and case are ignored. Returns an empty tuple when the type is
-        unknown, malformed, or has no extensions.
-        """
-        entry = self._entry(mime)
-        return () if entry is None else tuple("." + ext for ext in entry.extensions)
-
-    def guess_extension(self, mime: str) -> str | None:
-        """Return the preferred extension of a type with a leading dot, or ``None``."""
-        exts = self.extensions_for(mime)
-        return exts[0] if exts else None
-
-    def media_type_info(self, mime: str) -> MediaTypeInfo | None:
-        """Return everything known about a type, or ``None`` when it is unknown."""
-        key = lenient_essence(mime)
-        entry = None if key is None else self._types.get(key)
-        if key is None or entry is None:
-            return None
-        return MediaTypeInfo(
-            type=key,
-            source=entry.source,
-            extensions=tuple("." + ext for ext in entry.extensions),
-            charset=real_charset(entry.charset),
-            compressible=entry.compressible,
-            suffix=structured_suffix(key),
-        )
-
-    def default_charset(self, mime: str) -> str | None:
-        """Return the default charset for a type, lowercase, or ``None``.
-
-        The charset the source data declares wins (``application/json`` gives
-        ``"utf-8"``); otherwise any ``text/*`` type gets ``"utf-8"``, as in
-        jshttp mime-types. Other types give ``None``. Unlike mime-types, the
-        source annotations ``7-BIT`` and ``XML-BASED`` are not charsets and are
-        never returned.
-        """
-        key = lenient_essence(mime)
-        if key is None:
-            return None
-        entry = self._types.get(key)
-        declared = None if entry is None else real_charset(entry.charset)
-        if declared is not None:
-            return declared
-        return "utf-8" if key.startswith("text/") else None
-
-    def is_textual(self, mime: str) -> bool:
-        """Return whether a type carries text: ``text/*``, a type with a declared
-        charset, or a ``+json``, ``+xml``, ``+yaml`` or ``+json-seq`` suffix."""
-        key = lenient_essence(mime)
-        if key is None:
-            return False
-        entry = self._types.get(key)
-        return textual(key, None if entry is None else real_charset(entry.charset))
-
-    def is_compressible(self, mime: str) -> bool | None:
-        """Return whether a type usually compresses well, ``None`` when unknown."""
-        entry = self._entry(mime)
-        return None if entry is None else entry.compressible
 
     def content_type_for(self, path: str) -> str | None:
         """Return a Content-Type value for a path, with a charset when one applies.
 
         ``index.html`` gives ``"text/html; charset=utf-8"`` and ``photo.png``
         gives ``"image/png"``. Returns ``None`` when the type is unknown.
+
+        >>> import mimeguess as m
+        >>> m.default_table().content_type_for("index.html")
+        'text/html; charset=utf-8'
         """
         mime = self.guess_type(path)
         if mime is None:
             return None
         charset = self.default_charset(mime)
         return mime if charset is None else f"{mime}; charset={charset}"
-
-    def known_types(self) -> tuple[str, ...]:
-        """Return every MIME type in the table, sorted."""
-        return tuple(sorted(self._types))
-
-    def known_extensions(self) -> tuple[str, ...]:
-        """Return every extension the table resolves, with a leading dot, sorted."""
-        return tuple(sorted("." + ext for ext in self._extensions))
-
-    def _entry(self, mime: str) -> Entry | None:
-        key = lenient_essence(mime)
-        return None if key is None else self._types.get(key)
